@@ -3,32 +3,34 @@
 #include <string>
 #include <locale>
 #include <list>
+#include <map>
 
 using namespace std;
 
 const int ErrMax = 80;
 
-struct textposition { //для позиции символа в тексте программы
+struct textposition {
     int linenumber;
     int charnumber;
 };
 
-struct Err { //структура для еррор анализа
+struct Err {
     struct textposition errorposition;
     unsigned errorcode;
 };
 
-//static list <E> ErrList;
-static Err ErrList[ErrMax];
 static textposition positionnow;
+static textposition token;
+static Err ErrList[ErrMax];
+
 
 static ifstream Prog("//home//DEN4IK2115//workspace//vvod-vivod//Prog.txt");
 
-static int ErrInx;
 static bool ErrorOverFlow;
-static string line;
+static int ErrInx;
 static int LastInLine;
-static string ErrorList[350];
+static map <int, string> ErrorList;
+static string line;
 
 static int printed = 0;
 
@@ -43,7 +45,7 @@ void error(unsigned errorcode, textposition position) {
     }
 }
 
-void ListErrors() { //вывод номера ошибки в списке ошибок программы
+void ListErrors() {
     while (positionnow.linenumber == ErrList[ErrInx].errorposition.linenumber) {
         if (ErrInx < 10)
             cout << "**0" << ErrInx << "**";
@@ -70,7 +72,7 @@ void ReadNextLine() {
     }
 }
 
-void nextch(char &ch) {
+char nextch() {
     if (positionnow.charnumber == LastInLine) {
         ListThisLine();
         if (positionnow.linenumber == ErrList[ErrInx].errorposition.linenumber)
@@ -83,7 +85,12 @@ void nextch(char &ch) {
     }
     else
         positionnow.charnumber++;
-    ch = line[positionnow.charnumber];
+
+    return line[positionnow.charnumber];
+}
+
+void nextsum() {
+
 }
 
 bool chislo(string s) {
@@ -130,6 +137,7 @@ bool ReadAnaliz() {
 
 bool ReadCode() {
     string s;
+    int number;
     int i = 0;
     ifstream ErrorCode("//home//DEN4IK2115//workspace//vvod-vivod//ErrorCode.txt");
     if(!ErrorCode) {
@@ -146,12 +154,11 @@ bool ReadCode() {
     try {
     while (!ErrorCode.eof()) {
             ErrorCode >> s;
-            if(!chislo(s)) throw "Неверный код ошибки в файле описания ошибок";
+            if(!chislo(s) || !(number = atoi(s.c_str()))) throw "Неверный код ошибки в файле описания ошибок";
             ErrorCode >> s;
             if(s != ":") throw "Неверный формат файла с описанием ошибок";
             getline(ErrorCode, s);
-            ErrorList[i] = s;
-            i++;
+            ErrorList.insert(make_pair(number, s));
         }
     }
     catch(string s) {
@@ -188,11 +195,8 @@ int main() {
         ErrInx = 1;
         char ch;
         do {
-            nextch(ch);
+            ch = nextch();
         } while (!Prog.eof());
-        /*do {
-            nextch(ch);
-        } while (positionnow.charnumber != LastInLine);*/
         cout << "DEN4IK2115";
         Prog.close();
     }
