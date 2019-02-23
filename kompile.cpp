@@ -5,6 +5,8 @@
 #include <list>
 #include <map>
 
+#include "decw.h"
+
 using namespace std;
 
 const int ErrMax = 80;
@@ -26,9 +28,11 @@ static Err ErrList[ErrMax];
 
 static ifstream Prog("//home//DEN4IK2115//workspace//vvod-vivod//Prog.txt");
 
+static char ch;
 static bool ErrorOverFlow;
 static int ErrInx;
 static int LastInLine;
+static unsigned symbol;
 static map <int, string> ErrorList;
 static string line;
 
@@ -89,8 +93,121 @@ char nextch() {
     return line[positionnow.charnumber];
 }
 
-void nextsum() {
+void nextsym() {
+    char firstch;
+    char chtwo;
 
+    while(ch == ' ' || ch == '\t' || ch == '\n')
+        ch = nextch();
+    token.linenumber = positionnow.linenumber;
+    token.charnumber = positionnow.charnumber;
+    firstch = ch;
+    switch(ch) {
+     case '*':
+        ch = nextch();
+        symbol = star;
+        break;
+    case '/':
+        ch = nextch();
+        symbol = slash;
+        break;
+    case '=':
+        ch = nextch();
+        symbol = equal;
+        break;
+    case ',':
+        ch = nextch();
+        symbol = comma;
+        break;
+    case ';':
+        ch = nextch();
+        symbol = semicolon;
+        break;
+    case ':':
+        ch = nextch();
+        if(ch == '=') {
+            symbol = assign;
+            ch = nextch();
+        }
+        else
+            symbol = colon;
+        break;
+    case '.':
+        ch = nextch();
+        if(ch == '.') {
+            symbol = twopoints;
+            ch = nextch();
+        }
+        else
+            symbol = point;
+        break;
+    case '^':
+        ch = nextch();
+        symbol = arrow;
+        break;
+//    case '(':
+//        ch = nextch();
+//        if(ch == '*') {
+//            symbol = lcomment;
+//            do {
+//                chtwo = ch;
+//                ch = nextch();
+//            }while(!(chtwo == '*' && ch == ')') || ch != EOF);
+
+//        }
+//        symbol = leftpar;
+//        break;
+    case ')':
+        ch = nextch();
+        symbol = leftpar;
+        break;
+    case '[':
+        ch = nextch();
+        symbol = lbracket;
+        break;
+    case ']':
+        ch = nextch();
+        symbol = rbracket;
+        break;
+    case '{':
+        ch = nextch();
+        symbol = flpar;
+        break;
+    case '}':
+        ch = nextch();
+        symbol = frpar;
+        break;
+    case '<':
+        ch = nextch();
+        if(ch == '=') {
+            symbol = laterequal;
+            ch = nextch();
+        }
+        else if(ch == '>') {
+            symbol = latergreater;
+            ch = nextch();
+        }
+        else
+            symbol = later;
+        break;
+    case '>':
+        ch = nextch();
+        if(ch == '=') {
+            symbol = greaterequal;
+            ch = nextch();
+        }
+        else
+            symbol = greater;
+        break;
+    case '+':
+        ch = nextch();
+        symbol = plus;
+        break;
+    case '-':
+        ch = nextch();
+        symbol = minus;
+        break;
+    }
 }
 
 bool chislo(string s) {
@@ -193,9 +310,9 @@ int main() {
         //cout<<line;
         LastInLine = 0;
         ErrInx = 1;
-        char ch;
+        char ch_;
         do {
-            ch = nextch();
+            ch_ = nextch();
         } while (!Prog.eof());
         cout << "DEN4IK2115";
         Prog.close();
