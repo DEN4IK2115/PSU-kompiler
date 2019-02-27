@@ -6,25 +6,30 @@
 #include <map>
 
 #include "decw.h"
+#include "deckey.h"
 
 using namespace std;
 
 const int ErrMax = 80;
+const unsigned MAX_IDENT = 20; //максимальная длина идентификатора
 
 struct textposition {
     int linenumber;
     int charnumber;
 };
-
 struct Err {
     struct textposition errorposition;
     unsigned errorcode;
+};
+struct Key {
+    unsigned codekey;
+    char namekey[9];
 };
 
 static textposition positionnow;
 static textposition token;
 static Err ErrList[ErrMax];
-
+static Key keywords[51];
 
 static ifstream Prog("//home//DEN4IK2115//workspace//vvod-vivod//Prog.txt");
 
@@ -33,8 +38,62 @@ static bool ErrorOverFlow;
 static int ErrInx;
 static int LastInLine;
 static unsigned symbol;
+static unsigned lname;
 static map <int, string> ErrorList;
+static map <string, unsigned/*, string*/> KeyList = {
+    {"do", dosy},
+    {"if", ifsy},
+    {"in", insy},
+    {"of", ofsy},
+    {"or", orsy},
+    {"to", tosy},
+    {"and", andsy},
+    {"div", divsy},
+    {"end", endsy},
+    {"for", forsy},
+    {"mod", modsy},
+    {"nil", nilsy},
+    {"not", notsy},
+    {"set", setsy},
+    {"var", varsy},
+    {"case", casesy},
+    {"else", elsesy},
+    {"file", filesy},
+    {"goto", gotosy},
+    {"only", onlysy},
+    {"then", thensy},
+    {"type", typesy},
+    {"unit", unitsy},
+    {"uses", usessy},
+    {"with", withsy},
+    {"array", arraysy},
+    {"begin", beginsy},
+    {"const", constsy},
+    {"label", labelsy},
+    {"until", untilsy},
+    {"while", whilesy},
+    {"downto", downtosy},
+    {"expory", exportsy},
+    {"import", importsy},
+    {"module", modulesy},
+    {"packed", packedsy},
+    {"record", recordsy},
+    {"repeat", repeatsy},
+    {"vector", vectorsy},
+    {"string", stringsy},
+    {"forward", forwardsy},
+    {"process", processsy},
+    {"program", programsy},
+    {"segment", segmentsy},
+    {"function", functionsy},
+    {"separate", separatesy},
+    {"interface", interfacesy},
+    {"procedure", proceduresy},
+    {"qualified", qualifiedsy},
+    {"implementation", implementationsy},
+};
 static string line;
+static string name;
 
 static int printed = 0;
 
@@ -93,121 +152,230 @@ char nextch() {
     return line[positionnow.charnumber];
 }
 
+void number() {
+    int digit;
+    int nbi = 0; //целое число, либо целая часть вещественного числа
+    int nbf = 0; //вещественная часть числа если используются только цифры
+    int nbfs = 0;
+    while(ch >= '0' && ch <= '9') {
+        digit = ch - '0';
+        nbi = nbi * 10 + digit;
+        ch = nextch();
+    }
+    if(ch == '.') {
+        ch = nextch();
+        while(ch >= '0' && ch <= '9') {
+            digit = ch - '0';
+            nbf = nbi * 10 + digit;
+            ch = nextch();
+        }
+        if(ch == 'e') {
+            ch = nextch();
+            if(ch == '+' || ch == '-') {
+                ch = nextch();
+                while(ch>='0' && ch <= 9) {
+                    ch = nextch();
+                    digit = ch - '0';
+                    nbfs = nbfs * 10 + digit;
+                }
+                symbol = floatc;
+            }
+            else {
+                while(ch>='0' && ch <= 9) {
+                    ch = nextch();
+                    digit = ch - '0';
+                    nbfs = nbfs * 10 + digit;
+                }
+                symbol = floatc;
+            }
+        }
+        else
+            symbol = floatc;
+    }
+    else {
+        symbol = intc;
+    }
+}
+
+//void testkey() {
+
+//}
+
 void nextsym() {
     char firstch;
     char chtwo;
-
-    while(ch == ' ' || ch == '\t' || ch == '\n')
-        ch = nextch();
-    token.linenumber = positionnow.linenumber;
-    token.charnumber = positionnow.charnumber;
-    firstch = ch;
-    switch(ch) {
-     case '*':
-        ch = nextch();
-        symbol = star;
-        break;
-    case '/':
-        ch = nextch();
-        symbol = slash;
-        break;
-    case '=':
-        ch = nextch();
-        symbol = equal;
-        break;
-    case ',':
-        ch = nextch();
-        symbol = comma;
-        break;
-    case ';':
-        ch = nextch();
-        symbol = semicolon;
-        break;
-    case ':':
-        ch = nextch();
-        if(ch == '=') {
-            symbol = assign;
+    if(ch != EOF) {
+        while(ch == ' ' || ch == '\t' || ch == '\n')
             ch = nextch();
-        }
-        else
-            symbol = colon;
-        break;
-    case '.':
-        ch = nextch();
-        if(ch == '.') {
-            symbol = twopoints;
-            ch = nextch();
-        }
-        else
-            symbol = point;
-        break;
-    case '^':
-        ch = nextch();
-        symbol = arrow;
-        break;
-//    case '(':
-//        ch = nextch();
-//        if(ch == '*') {
-//            symbol = lcomment;
+        token.linenumber = positionnow.linenumber;
+        token.charnumber = positionnow.charnumber;
+        firstch = ch;
+        if(ch >= '0' && ch <= '9') ch = 0;
+        if((ch >= 'a' && ch <= 'z') || (ch >='A' && ch <= 'Z')) ch = 'a';
+//        if((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z')) {
 //            do {
-//                chtwo = ch;
 //                ch = nextch();
-//            }while(!(chtwo == '*' && ch == ')') || ch != EOF);
-
+//            }while((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch>= '0' && ch <= '9'));
+//            //symbol = ?
 //        }
-//        symbol = leftpar;
-//        break;
-    case ')':
-        ch = nextch();
-        symbol = leftpar;
-        break;
-    case '[':
-        ch = nextch();
-        symbol = lbracket;
-        break;
-    case ']':
-        ch = nextch();
-        symbol = rbracket;
-        break;
-    case '{':
-        ch = nextch();
-        symbol = flpar;
-        break;
-    case '}':
-        ch = nextch();
-        symbol = frpar;
-        break;
-    case '<':
-        ch = nextch();
-        if(ch == '=') {
-            symbol = laterequal;
+//        else
+        switch(ch) {
+        case '0':
+            ch = firstch;
+            number();
+            break;
+        case 'a':
+            name = "";
+            lname = 0;
+            ch = firstch;
+            while(((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9'))&& lname < MAX_IDENT) {
+                if(lname != 0) {
+                    lname ++;
+                    name[lname] = ch;
+                    ch = nextch();
+                }
+                else {
+                    name[lname] = ch;
+                    ch = nextch();
+                }
+            }
+            if (KeyList[name] != NULL)
+                symbol = KeyList[name];
+            else {
+                symbol = ident;
+            }
+            break;
+        case '\'':
+            if((ch = nextch()) != '\'')
+                if((ch = nextch()) != '\'')
+                    error();
+//            do {
+//                ch = nextch();
+//            } while(ch != '\'');
             ch = nextch();
-        }
-        else if(ch == '>') {
-            symbol = latergreater;
+            symbol = charc;
+            break;
+        case '\"':
+            do {
+                ch = nextch();
+            } while(ch != '\"');
             ch = nextch();
-        }
-        else
-            symbol = later;
-        break;
-    case '>':
-        ch = nextch();
-        if(ch == '=') {
-            symbol = greaterequal;
+            symbol = charc;
+            break;
+        case '*':
             ch = nextch();
+            symbol = star;
+            break;
+        case '/':
+            ch = nextch();
+            //        if(ch == '/')
+            //            do {
+            //                ch = nextch();
+            //            }while(ch != '\n');
+            symbol = slash;
+            break;
+        case '=':
+            ch = nextch();
+            symbol = equal;
+            break;
+        case ',':
+            ch = nextch();
+            symbol = comma;
+            break;
+        case ';':
+            ch = nextch();
+            symbol = semicolon;
+            break;
+        case ':':
+            ch = nextch();
+            if(ch == '=') {
+                symbol = assign;
+                ch = nextch();
+            }
+            else
+                symbol = colon;
+            break;
+        case '.':
+            ch = nextch();
+            if(ch == '.') {
+                symbol = twopoints;
+                ch = nextch();
+            }
+            else
+                symbol = point;
+            break;
+        case '^':
+            ch = nextch();
+            symbol = arrow;
+            break;
+        case '(': // пропускаем коментарий (*Коментарий*)
+            ch = nextch();
+            if(ch == '*') {
+                //symbol = lcomment;
+                do {
+                    chtwo = ch;
+                    ch = nextch();
+                }while(!(chtwo == '*' && ch == ')') && ch != EOF);
+            }
+            symbol = leftpar;
+            break;
+        case ')':
+            ch = nextch();
+            symbol = leftpar;
+            break;
+        case '[':
+            ch = nextch();
+            symbol = lbracket;
+            break;
+        case ']':
+            ch = nextch();
+            symbol = rbracket;
+            break;
+        case '{': // пропускаем коментарий {Коментарий}
+            ch = nextch();
+            while (ch != '}' && ch != EOF) {
+                ch = nextch();
+            }
+            //symbol = flpar;
+            break;
+            //    case '}':
+            //        ch = nextch();
+            //        symbol = frpar;
+            //        break;
+        case '<':
+            ch = nextch();
+            if(ch == '=') {
+                symbol = laterequal;
+                ch = nextch();
+            }
+            else if(ch == '>') {
+                symbol = latergreater;
+                ch = nextch();
+            }
+            else
+                symbol = later;
+            break;
+        case '>':
+            ch = nextch();
+            if(ch == '=') {
+                symbol = greaterequal;
+                ch = nextch();
+            }
+            else
+                symbol = greater;
+            break;
+        case '+':
+            ch = nextch();
+            symbol = plus;
+            break;
+        case '-':
+            ch = nextch();
+            symbol = minus;
+            break;
         }
-        else
-            symbol = greater;
-        break;
-    case '+':
-        ch = nextch();
-        symbol = plus;
-        break;
-    case '-':
-        ch = nextch();
-        symbol = minus;
-        break;
     }
+
+
 }
 
 bool chislo(string s) {
