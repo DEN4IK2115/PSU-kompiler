@@ -13,34 +13,37 @@ using namespace std;
 const int ErrMax = 80;
 const unsigned MAX_IDENT = 20; //максимальная длина идентификатора
 
-struct textposition {
+struct textposition { //Структура позиции лексемы в тексте
     int linenumber;
     int charnumber;
 };
-struct Err {
+struct Err { //Струтура положения ощибки в программе
     struct textposition errorposition;
     unsigned errorcode;
 };
-struct Key {
-    unsigned codekey;
-    char namekey[9];
-};
+//struct Key {
+//    unsigned codekey;
+//    char namekey[9];
+//};
 
 static textposition positionnow;
 static textposition token;
 static Err ErrList[ErrMax];
-static Key keywords[51];
+//static Key keywords[51];
 
-static ifstream Prog("//home//DEN4IK2115//workspace//vvod-vivod//Prog.txt");
+static ifstream Prog("//home//DEN4IK2115//GitHub//kompile//Prog.txt");
+static ofstream ch_file("//home//DEN4IK2115//GitHub//kompile//ch_file.txt", ios::out);
+static ofstream symbol_file("//home//DEN4IK2115//GitHub//kompile//symbol_file.txt", ios::out);
 
 static char ch;
 static bool ErrorOverFlow;
-static int ErrInx;
+static int ErrInx = -1;
+static int ErrI = 0;
 static int LastInLine;
 static unsigned symbol;
 static unsigned lname;
 static map <int, string> ErrorList;
-static map <string, unsigned/*, string*/> KeyList = {
+static map <string, unsigned/*, string*/> KeyList = { //Словарь специальных слов языка программирования
     {"do", dosy},
     {"if", ifsy},
     {"in", insy},
@@ -92,23 +95,25 @@ static map <string, unsigned/*, string*/> KeyList = {
     {"qualified", qualifiedsy},
     {"implementation", implementationsy},
 };
+
+//static char line[100];
 static string line;
 static string name;
 
-static int printed = 0;
+static int printed = -1;
 
-void error(unsigned errorcode, textposition position) {
-    if (ErrInx == ErrMax)
+void error(unsigned errorcode, textposition position) { //Функция заполнения массива ошибок в программе
+    if (ErrI == ErrMax)
         ErrorOverFlow = true;
     else {
-        ++ErrInx;
-        ErrList[ErrInx].errorcode = errorcode;
-        ErrList[ErrInx].errorposition.linenumber = position.linenumber;
-        ErrList[ErrInx].errorposition.charnumber = position.charnumber;
+        ++ErrI;
+        ErrList[ErrI].errorcode = errorcode;
+        ErrList[ErrI].errorposition.linenumber = position.linenumber;
+        ErrList[ErrI].errorposition.charnumber = position.charnumber;
     }
 }
 
-void ListErrors() {
+void ListErrors() { //Функция вывода всех ошибок для заданной строки
     while (positionnow.linenumber == ErrList[ErrInx].errorposition.linenumber) {
         if (ErrInx < 10)
             cout << "**0" << ErrInx << "**";
@@ -117,25 +122,28 @@ void ListErrors() {
         for(int i = 0; i < ErrList[ErrInx].errorposition.charnumber; i++)
             cout << " ";
         cout << "^" << "   Код Ошибки" << ErrList[ErrInx].errorcode << endl;
-        cout << "*****" << ErrorList[ErrList[ErrInx].errorcode] << endl;
+        cout << "*****" << ErrorList[static_cast<int>(ErrList[ErrInx].errorcode)] << endl;
         ErrInx++;
     }
 }
 
-void ListThisLine() {
+void ListThisLine() { //Функция вывода строки кода программы
     if (positionnow.linenumber == printed) return;
     printed = positionnow.linenumber;
     cout << positionnow.linenumber << "      " << line << endl;
 }
 
-void ReadNextLine() {
+void ReadNextLine() { //Функция считывания следующей строки кода программы
     if (!Prog.eof()) {
+        //fgets(line, 100, Prog);
         getline(Prog, line);
-        LastInLine = line.length();
+        LastInLine = static_cast<int>(line.length() - 1);
     }
 }
 
-char nextch() {
+char nextch() { //Функция считывания следующей лексемы кода программы
+    //unsigned i;
+    //char c;
     if (positionnow.charnumber == LastInLine) {
         ListThisLine();
         if (positionnow.linenumber == ErrList[ErrInx].errorposition.linenumber)
@@ -143,16 +151,16 @@ char nextch() {
         if (!Prog.eof()) {
             ReadNextLine();
             positionnow.linenumber++;
-            positionnow.charnumber = 1;
+            positionnow.charnumber = 0;
         }
     }
     else
         positionnow.charnumber++;
-
-    return line[positionnow.charnumber];
+    ch_file << line[static_cast<unsigned>(positionnow.charnumber)];
+    return line[static_cast<unsigned>(positionnow.charnumber)];
 }
 
-void number() {
+void number() { //Функция для обработки числа в коде программы
     int digit;
     int nbi = 0; //целое число, либо целая часть вещественного числа
     int nbf = 0; //вещественная часть числа если используются только цифры
@@ -166,25 +174,26 @@ void number() {
         ch = nextch();
         while(ch >= '0' && ch <= '9') {
             digit = ch - '0';
-            nbf = nbi * 10 + digit;
+            nbf = nbf * 10 + digit;
             ch = nextch();
         }
         if(ch == 'e') {
             ch = nextch();
             if(ch == '+' || ch == '-') {
                 ch = nextch();
-                while(ch>='0' && ch <= 9) {
-                    ch = nextch();
+                while(ch>='0' && ch <= '9') {
+
                     digit = ch - '0';
                     nbfs = nbfs * 10 + digit;
+                    ch = nextch();
                 }
                 symbol = floatc;
             }
             else {
-                while(ch>='0' && ch <= 9) {
-                    ch = nextch();
+                while(ch>='0' && ch <= '9') {
                     digit = ch - '0';
                     nbfs = nbfs * 10 + digit;
+                    ch = nextch();
                 }
                 symbol = floatc;
             }
@@ -193,32 +202,31 @@ void number() {
             symbol = floatc;
     }
     else {
-        symbol = intc;
+        if(ch <= '0' || ch >= '9') {
+            if(nbi >= -100 && nbi <= 100)
+                symbol = intc;
+            else
+                error(203, token);
+        }
+        else {
+
+        }
     }
 }
 
-//void testkey() {
-
-//}
-
-void nextsym() {
+void nextsym() { //Функция для формирования символов программы(слов)
     char firstch;
     char chtwo;
     if(ch != EOF) {
-        while(ch == ' ' || ch == '\t' || ch == '\n')
+        while(ch == ' '/*" "[0]*/ || ch == '\t' || ch == '\n')
             ch = nextch();
         token.linenumber = positionnow.linenumber;
+        //cout << token.linenumber;
         token.charnumber = positionnow.charnumber;
         firstch = ch;
-        if(ch >= '0' && ch <= '9') ch = 0;
+        if(ch >= '0' && ch <= '9') ch = '0';
         if((ch >= 'a' && ch <= 'z') || (ch >='A' && ch <= 'Z')) ch = 'a';
-//        if((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z')) {
-//            do {
-//                ch = nextch();
-//            }while((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch>= '0' && ch <= '9'));
-//            //symbol = ?
-//        }
-//        else
+
         switch(ch) {
         case '0':
             ch = firstch;
@@ -231,15 +239,15 @@ void nextsym() {
             while(((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9'))&& lname < MAX_IDENT) {
                 if(lname != 0) {
                     lname ++;
-                    name[lname] = ch;
+                    name += ch;
                     ch = nextch();
                 }
                 else {
-                    name[lname] = ch;
+                    name += ch;
                     ch = nextch();
                 }
             }
-            if (KeyList[name] != NULL)
+            if (KeyList[name]/* != NULL*/)
                 symbol = KeyList[name];
             else {
                 symbol = ident;
@@ -248,19 +256,22 @@ void nextsym() {
         case '\'':
             if((ch = nextch()) != '\'')
                 if((ch = nextch()) != '\'')
-                    error();
-//            do {
-//                ch = nextch();
-//            } while(ch != '\'');
+                    error(76, token);
             ch = nextch();
             symbol = charc;
             break;
         case '\"':
             do {
                 ch = nextch();
-            } while(ch != '\"');
-            ch = nextch();
-            symbol = charc;
+            } while(ch != '\"' && ch != EOF);
+            if(ch == '\"') {
+                ch = nextch();
+                symbol = charc;
+            }
+            else {
+                //error();
+                symbol = charc;
+            }
             break;
         case '*':
             ch = nextch();
@@ -321,7 +332,7 @@ void nextsym() {
             break;
         case ')':
             ch = nextch();
-            symbol = leftpar;
+            symbol = rightpar;
             break;
         case '[':
             ch = nextch();
@@ -370,7 +381,14 @@ void nextsym() {
             break;
         case '-':
             ch = nextch();
-            symbol = minus;
+            if(ch >= '0' && ch <= '9') {
+
+            }
+            else
+                symbol = minus;
+            break;
+        default:
+            error(6,token);
             break;
         }
     }
@@ -379,9 +397,9 @@ void nextsym() {
 }
 
 bool chislo(string s) {
-    int n = s.length();
-    for(int i = 0; i < n; i++)
-        if (s[i]<'0' || s[i]>'9')
+    unsigned n = static_cast<unsigned>(s.length());
+    for(unsigned i = 0; i < n; i++)
+        if (s[i] < '0' || s[i] > '9')
             return false;
     return true;
 }
@@ -407,7 +425,7 @@ bool ReadAnaliz() {
             ErrorAnaliz >> s;
             if(!(position.charnumber = atoi(s.c_str())) || !chislo(s)) throw "Неверный формат номера символа" + s;
             ErrorAnaliz >> s;
-            if(!(errorcode = atoi(s.c_str())) || !chislo(s)) throw "Неверный формат кода ошибки" + s;
+            if(!(errorcode = static_cast<unsigned>(atoi(s.c_str()))) || !chislo(s)) throw "Неверный формат кода ошибки" + s;
             error(errorcode, position);
         }
     }
@@ -423,7 +441,7 @@ bool ReadAnaliz() {
 bool ReadCode() {
     string s;
     int number;
-    int i = 0;
+    //int i = 0;
     ifstream ErrorCode("//home//DEN4IK2115//workspace//vvod-vivod//ErrorCode.txt");
     if(!ErrorCode) {
         cout << "Не удалось открыть файл с описанием ошибок" << endl;
@@ -472,22 +490,29 @@ bool ReadProg() {
 int main() {
     setlocale(LC_ALL, "rus");
     if(ReadCode() && ReadAnaliz() && ReadProg()) {
-        positionnow.linenumber = 0;
+        positionnow.linenumber = 1;
         positionnow.charnumber = 0;
-        //ReadNextLine();
-        //cout<<line;
-        LastInLine = 0;
-        ErrInx = 1;
-        char ch_;
+        ReadNextLine();
+        cout<<line;
+
+        ErrInx = 0;
+
+        ch = line[0];
         do {
-            ch_ = nextch();
+            nextsym();
+            symbol_file << symbol << "_";
+            //ch = nextch();
+            //cout << ch;
         } while (!Prog.eof());
         cout << "DEN4IK2115";
         Prog.close();
+        ch_file << "Hellow World";
+        symbol_file.close();
+        ch_file.close();
     }
     else {
         //cout << "" << endl;
     }
     //system{"pause";
-    return 0;
+    return 1;
 }
