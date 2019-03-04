@@ -4,6 +4,7 @@
 #include <locale>
 #include <list>
 #include <map>
+#include <math.h>
 
 #include "decw.h"
 #include "deckey.h"
@@ -12,6 +13,7 @@ using namespace std;
 
 const int ErrMax = 80;
 const unsigned MAX_IDENT = 20; //максимальная длина идентификатора
+const unsigned MAX_LENGTH_STRING = 20;
 
 struct textposition { //Структура позиции лексемы в тексте
     int linenumber;
@@ -37,63 +39,66 @@ static ofstream symbol_file("//home//DEN4IK2115//GitHub//kompile//symbol_file.tx
 
 static char ch;
 static bool ErrorOverFlow;
-static int ErrInx = -1;
-static int ErrI = 0;
+static int ErrInx;
+static int ErrI = -1;
 static int LastInLine;
 static unsigned symbol;
 static unsigned lname;
 static map <int, string> ErrorList;
-static map <string, unsigned/*, string*/> KeyList = { //Словарь специальных слов языка программирования
-    {"do", dosy},
-    {"if", ifsy},
-    {"in", insy},
-    {"of", ofsy},
-    {"or", orsy},
-    {"to", tosy},
-    {"and", andsy},
-    {"div", divsy},
-    {"end", endsy},
-    {"for", forsy},
-    {"mod", modsy},
-    {"nil", nilsy},
-    {"not", notsy},
-    {"set", setsy},
-    {"var", varsy},
-    {"case", casesy},
-    {"else", elsesy},
-    {"file", filesy},
-    {"goto", gotosy},
-    {"only", onlysy},
-    {"then", thensy},
-    {"type", typesy},
-    {"unit", unitsy},
-    {"uses", usessy},
-    {"with", withsy},
-    {"array", arraysy},
-    {"begin", beginsy},
-    {"const", constsy},
-    {"label", labelsy},
-    {"until", untilsy},
-    {"while", whilesy},
-    {"downto", downtosy},
-    {"expory", exportsy},
-    {"import", importsy},
-    {"module", modulesy},
-    {"packed", packedsy},
-    {"record", recordsy},
-    {"repeat", repeatsy},
-    {"vector", vectorsy},
-    {"string", stringsy},
-    {"forward", forwardsy},
-    {"process", processsy},
-    {"program", programsy},
-    {"segment", segmentsy},
-    {"function", functionsy},
-    {"separate", separatesy},
-    {"interface", interfacesy},
-    {"procedure", proceduresy},
-    {"qualified", qualifiedsy},
-    {"implementation", implementationsy},
+static map <string, unsigned/*, string*/> KeyList =
+{ //Словарь специальных слов языка программирования
+  {"do", dosy},
+  {"if", ifsy},
+  {"in", insy},
+  {"of", ofsy},
+  {"or", orsy},
+  {"to", tosy},
+  {"and", andsy},
+  {"div", divsy},
+  {"end", endsy},
+  {"for", forsy},
+  {"mod", modsy},
+  {"nil", nilsy},
+  {"not", notsy},
+  {"set", setsy},
+  {"var", varsy},
+  {"true", TRUE},
+  {"case", casesy},
+  {"else", elsesy},
+  {"file", filesy},
+  {"goto", gotosy},
+  {"only", onlysy},
+  {"then", thensy},
+  {"type", typesy},
+  {"unit", unitsy},
+  {"uses", usessy},
+  {"with", withsy},
+  {"false", FALSE},
+  {"array", arraysy},
+  {"begin", beginsy},
+  {"const", constsy},
+  {"label", labelsy},
+  {"until", untilsy},
+  {"while", whilesy},
+  {"downto", downtosy},
+  {"expory", exportsy},
+  {"import", importsy},
+  {"module", modulesy},
+  {"packed", packedsy},
+  {"record", recordsy},
+  {"repeat", repeatsy},
+  {"vector", vectorsy},
+  {"string", stringsy},
+  {"forward", forwardsy},
+  {"process", processsy},
+  {"program", programsy},
+  {"segment", segmentsy},
+  {"function", functionsy},
+  {"separate", separatesy},
+  {"interface", interfacesy},
+  {"procedure", proceduresy},
+  {"qualified", qualifiedsy},
+  {"implementation", implementationsy},
 };
 
 //static char line[100];
@@ -130,14 +135,14 @@ void ListErrors() { //Функция вывода всех ошибок для �
 void ListThisLine() { //Функция вывода строки кода программы
     if (positionnow.linenumber == printed) return;
     printed = positionnow.linenumber;
-    cout << positionnow.linenumber << "      " << line << endl;
+    cout << positionnow.linenumber << "     " << line << endl;
 }
 
 void ReadNextLine() { //Функция считывания следующей строки кода программы
     if (!Prog.eof()) {
         //fgets(line, 100, Prog);
         getline(Prog, line);
-        LastInLine = static_cast<int>(line.length() - 1);
+        LastInLine = static_cast<int>(line.length());
     }
 }
 
@@ -160,34 +165,42 @@ char nextch() { //Функция считывания следующей лек�
     return line[static_cast<unsigned>(positionnow.charnumber)];
 }
 
-void number() { //Функция для обработки числа в коде программы
+void number(int sign) { //Функция для обработки числа в коде программы
+    int i = 0;
     int digit;
     int nbi = 0; //целое число, либо целая часть вещественного числа
-    int nbf = 0; //вещественная часть числа если используются только цифры
-    int nbfs = 0;
+    double nbf = 0; //вещественная часть числа если используются только цифры
+    double nbfs = 0;
+    double mask = 1.0;
     while(ch >= '0' && ch <= '9') {
-        digit = ch - '0';
+        digit = (ch - '0') * sign;
         nbi = nbi * 10 + digit;
         ch = nextch();
+        i++;
     }
     if(ch == '.') {
+        nbf = static_cast<double>(nbi);
         ch = nextch();
         while(ch >= '0' && ch <= '9') {
             digit = ch - '0';
-            nbf = nbf * 10 + digit;
+            mask /= 10;
+            nbf = nbf + digit * sign * mask;
             ch = nextch();
         }
         if(ch == 'e') {
             ch = nextch();
             if(ch == '+' || ch == '-') {
+                if(ch == '+')
+                    sign = 1;
+                else
+                    sign = -1;
                 ch = nextch();
                 while(ch>='0' && ch <= '9') {
-
-                    digit = ch - '0';
+                    digit = (ch - '0') * sign;
                     nbfs = nbfs * 10 + digit;
                     ch = nextch();
                 }
-                symbol = floatc;
+                //symbol = floatc;
             }
             else {
                 while(ch>='0' && ch <= '9') {
@@ -195,29 +208,44 @@ void number() { //Функция для обработки числа в код�
                     nbfs = nbfs * 10 + digit;
                     ch = nextch();
                 }
-                symbol = floatc;
+                //symbol = floatc;
             }
+            nbf = nbf * pow(10, nbfs);
+            if(nbf <= -1.8e38)
+                error(206, token);
+            else
+                if(nbf >= 1.8e38)
+                    error(207, token);
+                else
+                    symbol = floatc;
         }
         else
-            symbol = floatc;
+            if(nbf <= -1.8e38)
+                error(206, token);
+            else
+                if(nbf >= 1.8e38)
+                    error(207, token);
+                else
+                    symbol = floatc;
     }
     else {
-        if(ch <= '0' || ch >= '9') {
-            if(nbi >= -100 && nbi <= 100)
+        //if(ch <= '0' || ch >= '9') {
+            if((nbi >= -32768 && nbi <= 32767) && i < 5)
                 symbol = intc;
             else
                 error(203, token);
-        }
-        else {
+        //}
+        //else {
 
-        }
+        //}
     }
 }
 
 void nextsym() { //Функция для формирования символов программы(слов)
     char firstch;
     char chtwo;
-    if(ch != EOF) {
+    unsigned i;
+    if(!Prog.eof()) {
         while(ch == ' '/*" "[0]*/ || ch == '\t' || ch == '\n')
             ch = nextch();
         token.linenumber = positionnow.linenumber;
@@ -230,7 +258,7 @@ void nextsym() { //Функция для формирования символо
         switch(ch) {
         case '0':
             ch = firstch;
-            number();
+            number(1);
             break;
         case 'a':
             name = "";
@@ -261,16 +289,18 @@ void nextsym() { //Функция для формирования символо
             symbol = charc;
             break;
         case '\"':
+            i = 0;
             do {
                 ch = nextch();
-            } while(ch != '\"' && ch != EOF);
+            } while(ch != '\"' && !Prog.eof() && i < MAX_LENGTH_STRING);
             if(ch == '\"') {
                 ch = nextch();
                 symbol = charc;
             }
             else {
-                //error();
-                symbol = charc;
+                error(76, {positionnow.linenumber, token.charnumber});
+                symbol = endoffile;
+                ch = nextch();
             }
             break;
         case '*':
@@ -326,9 +356,15 @@ void nextsym() { //Функция для формирования символо
                 do {
                     chtwo = ch;
                     ch = nextch();
-                }while(!(chtwo == '*' && ch == ')') && ch != EOF);
+                }while(!(chtwo == '*' && ch == ')') && !Prog.eof());
+                if(Prog.eof()) {
+                    symbol = endoffile;
+                    error(86, {positionnow.linenumber, token.charnumber});
+                    ch = nextch();
+                }
             }
-            symbol = leftpar;
+            else
+                symbol = leftpar;
             break;
         case ')':
             ch = nextch();
@@ -344,7 +380,12 @@ void nextsym() { //Функция для формирования символо
             break;
         case '{': // пропускаем коментарий {Коментарий}
             ch = nextch();
-            while (ch != '}' && ch != EOF) {
+            while (ch != '}' && !Prog.eof()) {
+                ch = nextch();
+            }
+            if(Prog.eof()) {
+                symbol = endoffile;
+                error(86, {positionnow.linenumber, token.charnumber});
                 ch = nextch();
             }
             //symbol = flpar;
@@ -382,18 +423,27 @@ void nextsym() { //Функция для формирования символо
         case '-':
             ch = nextch();
             if(ch >= '0' && ch <= '9') {
-
+                number(-1);
             }
             else
                 symbol = minus;
             break;
+        case '\r':
+        case '\n':
+        case '\t':
+        case '\v':
+        case '\0':
+            ch = nextch();
+            break;
+        case endoffile:
+            symbol = endoffile;
+            break;
         default:
             error(6,token);
+            ch = nextch();
             break;
         }
     }
-
-
 }
 
 bool chislo(string s) {
@@ -489,14 +539,11 @@ bool ReadProg() {
 
 int main() {
     setlocale(LC_ALL, "rus");
-    if(ReadCode() && ReadAnaliz() && ReadProg()) {
+    if(ReadCode() /*&& ReadAnaliz()*/ && ReadProg()) {
         positionnow.linenumber = 1;
         positionnow.charnumber = 0;
         ReadNextLine();
-        cout<<line;
-
         ErrInx = 0;
-
         ch = line[0];
         do {
             nextsym();
@@ -504,6 +551,9 @@ int main() {
             //ch = nextch();
             //cout << ch;
         } while (!Prog.eof());
+        symbol = endoffile;
+        symbol_file << symbol << "_";
+        //}while (symbol != endoffile);
         cout << "DEN4IK2115";
         Prog.close();
         ch_file << "Hellow World";
